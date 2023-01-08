@@ -1,0 +1,102 @@
+http:
+  routers:
+    traefik:
+      rule: "PathPrefix(`/api`) || PathPrefix(`/dashboard`)"
+      service: api@internal
+      entryPoints:
+        - web
+
+    kibana_http:
+      rule: "Host(`{{ env "KIBANA_URL" }}`) && Path(`/`)"
+      service: kibana
+      entrypoints:
+        - web
+      middlewares:
+        - "redirect_https"
+    kibana_https:
+        rule: "Host(`{{ env "KIBANA_URL" }}`) && Path(`/`)"
+        service: kibana
+        entrypoints:
+          - websecure
+        tls:
+          {}
+
+    elasticsearch_http:
+      rule: "Host(`{{ env "ELASTICSEARCH_URL" }}`) && Path(`/`)"
+      service: elasticsearch
+      entrypoints:
+        - web
+      middlewares:
+        - "redirect_https"
+    elasticsearch_https:
+        rule: "Host(`{{ env "ELASTICSEARCH_URL" }}`) && Path(`/`)"
+        service: elasticsearch
+        entrypoints:
+          - websecure
+        tls:
+          {}
+
+    elasticsearch_9200:
+      rule: "HostRegexp(`{subhost:[a-zA-Z0-9-]+}.{{ env "DOMAIN" }}`)"
+      service: elasticsearch
+      entrypoints:
+        - elasticsearch
+      middlewares:
+        - elasticsearchForward
+    elasticsearch_9200_https:
+      rule: "HostRegexp(`{subhost:[a-zA-Z0-9-]+}.{{ env "DOMAIN" }}`)"
+      service: elasticsearch
+      entrypoints:
+        - elasticsearch
+      middlewares:
+        - elasticsearchForward
+      tls:
+        {}
+
+
+  services:
+    kibana:
+      loadBalancer:
+        servers:
+          - url: "http://tasks.kibana/"
+
+    elasticsearch:
+      loadBalancer:
+        servers:
+          - url: "http://tasks.master-1:9200/"
+          - url: "http://tasks.master-2:9200/"
+          - url: "http://tasks.data-1:9200/"
+          - url: "http://tasks.data-2:9200/"
+
+  
+  middlewares:
+    redirect_https:
+      redirectScheme:
+        scheme: https
+        permanent: true
+
+    elasticsearchForward:
+      redirectRegex:
+        regex: .*
+        replacement: https://{{ env "ELASTICSEARCH_URL" }}
+        permanent: true
+
+serversTransport:
+  insecureSkipVerify: true
+
+tls:
+  certificates:
+    - certFile: /run/secrets/konicki.com.pem
+      keyFile: /run/secrets/konicki.com.key
+      stores:
+        - default
+
+  stores:
+    default:
+      defaultCertificate:
+        certFile: /run/secrets/konicki.com.pem
+        keyFile: /run/secrets/konicki.com.key
+
+  options:
+    default:
+      minVersion: VersionTLS12

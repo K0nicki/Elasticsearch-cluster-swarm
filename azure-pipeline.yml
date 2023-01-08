@@ -1,0 +1,22 @@
+---
+trigger: none
+
+resources:
+  repositories: 
+    - repository: Templates
+      type: git
+      name: Templates
+      ref: master
+
+parameters:
+  - name: deploy_traefik
+    displayName: Deploy Traefik
+    type: boolean
+    default: false
+
+
+stages:
+- template: templates/azure-pipeline.elasticsearch.yml
+
+- ${{ if eq(parameters.deploy_traefik, true) }}:
+  - template: templates/azure-pipeline.traefik.yml

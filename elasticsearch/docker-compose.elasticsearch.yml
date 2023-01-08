@@ -1,0 +1,139 @@
+---
+version: "3.8"
+
+
+x-elasticsearch-networks: &networks
+  networks:
+    - elasticsearch
+    - traefik
+
+x-ulimits: &ulimits
+  ulimits:
+    memlock:
+      soft: -1
+      hard: -1
+
+x-deploy-restart-policy: &restart-policy
+  restart_policy:
+    condition: on-failure
+    delay: 10s
+    max_attempts: 3
+
+x-healthcheck-es: &healthcheck
+  healthcheck:
+    test: curl -fs http://localhost:9200/_cat/health || false
+    interval: 30s
+    timeout: 5s
+    retries: 3
+    start_period: 60s
+
+x-elasticsearch-default-env: &elasticsearch-default-env
+  bootstrap.memory_lock: ${ES_BOOTSTRAP_MEMORY_LOCK}
+  discovery.zen.minimum_master_nodes: ${ES_DISCOVERY_MINIMUM_MASTER_NODES}
+  discovery.zen.ping.unicast.hosts: ${ES_DISCOVERY_UNICAST_HOSTS}
+  discovery.seed_hosts: ${ES_DISCOVERY_SEED_HOSTS}
+  discovery.zen.ping_timeout: ${ES_DEFAULT_TIMEOUT}
+  discovery.zen.commit_timeout: ${ES_DEFAULT_TIMEOUT}
+  ES_JAVA_OPTS: ${ES_JAVA_OPTS}
+  xpack.license.self_generated.type: trial
+  xpack.security.enabled: true
+  xpack.security.http.ssl.enabled: true
+  node.data: true
+  node.ingest: false
+  cluster.name: ${ES_CLUSTER_NAME}
+  network.host: ${ES_NETWORK_HOST}
+  action.destructive_requires_name: true
+
+
+services:
+  master-1:
+    image: luzblu3s/elasticsearch:8.5.3
+    <<: [*networks, *healthcheck, *ulimits]
+    volumes:
+      - elasticsearch_master_1:${ES_DATA_DIR}
+    environment:
+      <<: *elasticsearch-default-env
+      node.master: true
+      node.name: elasticsearch-master-1
+    deploy:
+      placement:
+        constraints: [ node.hostname == vm1.konicki.com ]
+      mode: replicated
+      replicas: ${ES_REPLICAS_MASTER_1}
+      resources:
+        limits:
+          memory: ${ES_MEMORY_LIMIT_MASTER_1}
+      <<: *restart-policy
+
+  master-2:
+    image: luzblu3s/elasticsearch:8.5.3
+    <<: [*networks, *healthcheck, *ulimits]
+    volumes:
+      - elasticsearch_master_2:${ES_DATA_DIR}
+    environment:
+      <<: *elasticsearch-default-env
+      node.master: true
+      node.name: elasticsearch-master-2
+    deploy:
+      placement:
+        constraints: [ node.hostname == vm2.konicki.com ]
+      mode: replicated
+      replicas: ${ES_REPLICAS_MASTER_2}
+      resources:
+        limits:
+          memory: ${ES_MEMORY_LIMIT_MASTER_2}
+      <<: *restart-policy
+
+  data-1:
+    image: luzblu3s/elasticsearch:8.5.3
+    <<: [*networks, *healthcheck, *ulimits]
+    volumes:
+      - elasticsearch_data_1:${ES_DATA_DIR}
+    environment:
+      <<: *elasticsearch-default-env
+      node.master: false
+      node.name: elasticsearch-data-1
+    deploy:
+      placement:
+        constraints: [ node.hostname == vm1.konicki.com ]
+      mode: replicated
+      replicas: ${ES_REPLICAS_DATA_1}
+      resources:
+        limits:
+          memory: ${ES_MEMORY_LIMIT_DATA_1}
+      <<: *restart-policy
+
+  data-2:
+    image: luzblu3s/elasticsearch:8.5.3
+    <<: [*networks, *healthcheck, *ulimits]
+    volumes:
+      - elasticsearch_data_2:${ES_DATA_DIR}
+    environment:
+      <<: *elasticsearch-default-env
+      node.master: false
+      node.name: elasticsearch-data-2
+    deploy:
+      placement:
+        constraints: [ node.hostname == vm2.konicki.com ]
+      mode: replicated
+      replicas: ${ES_REPLICAS_DATA_2}
+      resources:
+        limits:
+          memory: ${ES_MEMORY_LIMIT_DATA_2}
+      <<: *restart-policy
+
+
+networks:
+  elasticsearch:
+    driver: overlay
+    attachable: true
+    name: elasticsearch
+  traefik:
+    external: true
+
+
+volumes:
+  elasticsearch_master_1:
+  elasticsearch_master_2:
+  elasticsearch_data_1:
+  elasticsearch_data_2:

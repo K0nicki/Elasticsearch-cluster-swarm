@@ -1,0 +1,61 @@
+version: "3.8"
+
+services:
+  traefik:
+    image: luzblu3s/traefik:2.5
+    ports:
+      - 8080:8080 # Traefik
+      - 80:80  
+      - 443:443
+      - 9200:9200
+    configs:
+      - source: traefik_config
+        target: /configuration/config.yml
+    secrets:
+      - konicki.com.pem
+      - konicki.com.key
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock"
+    networks:
+      - traefik
+    environment:
+      KIBANA_URL: ${KIBANA_URL}
+      ELASTICSEARCH_URL: ${ELASTICSEARCH_URL}
+      DOMAIN: ${DOMAIN}
+    deploy:
+      mode: replicated
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+    command:
+      - "--providers.docker.endpoint=unix:///var/run/docker.sock"
+      - "--providers.docker.swarmMode=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--providers.docker.network=traefik-public"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+      - "--entrypoints.elasticsearch.address=:9200"
+      - "--api=true"
+      - "--api.insecure=true"
+      - "--providers.file.directory=/configuration/"
+      - "--providers.file.watch=true"
+
+networks:
+  traefik:
+    external: true
+  elasticsearch:
+    external: true
+
+configs:
+  traefik_config:
+    name: traefik_config-${CONFIG_NUMBER:-0}
+    file: ./config.yml
+
+secrets:
+  konicki.com.pem:
+    name: konicki.com.pem-${CONFIG_NUMBER:-0}
+    file: "./ssl/konicki.com.crt"
+  konicki.com.key:
+    name: konicki.com.key-${CONFIG_NUMBER:-0}
+    file: "./ssl/konicki.com.key"
+    
