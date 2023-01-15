@@ -8,6 +8,11 @@ resources:
       name: Templates
       ref: master
 
+    - repository: Ansible.Elasticsearch
+      type: git
+      name: Ansible/Ansible.Elasticsearch
+      ref: master
+
 parameters:
   - name: deploy_traefik
     displayName: Deploy Traefik
