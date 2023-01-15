@@ -7,6 +7,7 @@ services:
       - 8080:8080 # Traefik
       - 80:80  
       - 443:443
+      - 5601:5601
       - 9200:9200
     configs:
       - source: traefik_config
@@ -31,9 +32,10 @@ services:
       - "--providers.docker.endpoint=unix:///var/run/docker.sock"
       - "--providers.docker.swarmMode=true"
       - "--providers.docker.exposedbydefault=false"
-      - "--providers.docker.network=traefik-public"
+      - "--providers.docker.network=traefik"
       - "--entrypoints.web.address=:80"
       - "--entrypoints.websecure.address=:443"
+      - "--entrypoints.kibana.address=:5601"
       - "--entrypoints.elasticsearch.address=:9200"
       - "--api=true"
       - "--api.insecure=true"
@@ -54,8 +56,8 @@ configs:
 secrets:
   konicki.com.pem:
     name: konicki.com.pem-${CONFIG_NUMBER:-0}
-    file: "./ssl/konicki.com.crt"
+    file: "ssl/konicki.com.crt"
   konicki.com.key:
     name: konicki.com.key-${CONFIG_NUMBER:-0}
-    file: "./ssl/konicki.com.key"
+    file: "ssl/konicki.com.key"
     

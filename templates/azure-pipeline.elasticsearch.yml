@@ -10,24 +10,21 @@ stages:
 - ${{ each env in parameters.environments }}:
   - template: stage/ado/containerized/template.yml@Templates
     parameters:
-      stageDisplayName: ElasticSearch on ${{ upper(env) }}
+      stageDisplayName: ElasticSearch on ${{ upper(env.key) }}
       dependsOn: []
-      environment: ${{ upper(env) }}
+      environment: ${{ upper(env.key) }}
       pool: K0nicki
       server: ${{ env.value }}
       steps:
         - script: |
             set -o allexport
-              source ../env/elasticsearch.env
+            source ../env/elasticsearch.env
+            source ../env/traefik.env
             set +o allexport
 
-            export CONFIG_NUMBER=$(($(docker config ls --format "{{.Name}}" | grep -Eo 'elasticsearch_.*' | grep -Eo '[0-9]+$' | sort -ur | head -n 1)+1))
-            export LOWER_CONFIG_NUMBER=$(($CONFIG_NUMBER-1))
+            docker network create --driver overlay traefik
 
-            docker stack deploy --compose-file=docker-compose.elasticsearch.yml --compose-file=docker-compose.kibana.yml --with-registry-auth --prune elasticsearch || \
-              true && \
-              docker config rm $(docker config ls --format "{{.Name}}" | grep -Eo 'elasticsearch_.*'$LOWER_CONFIG_NUMBER'') || \
-              true
+            docker stack deploy --compose-file=docker-compose.elasticsearch.yml --compose-file=docker-compose.kibana.yml --with-registry-auth --prune elasticsearch
           workingDirectory: "$(Build.Repository.LocalPath)/elasticsearch"
           env:
             DOCKER_CONTEXT: ${{ env.value }}

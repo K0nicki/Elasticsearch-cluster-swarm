@@ -8,20 +8,25 @@ services:
       - elasticsearch
       - traefik
     environment:
-      - "ELASTICSEARCH_URL=http://elasticsearch:9200" # Loadbalanced by the Traefik
+      SERVER_NAME: ${KIBANA_URL}
+      ELASTICSEARCH_HOSTS: http://tasks.coordinator:9200
+      SERVER_PUBLICBASEURL: http://${KIBANA_URL}:5601
+      XPACK_MONITORING_COLLECTION_ENABLED: "true"
     deploy:
       mode: replicated
       replicas: 1
       placement:
-        constraints: [ node.role == manager ]
+        constraints:
+          - node.labels.elasticsearch == true
       restart_policy:
-        condition: on-failure
-        delay: 10s
-        max_attempts: 3
+        condition: ${DOCKER_DEFAULT_RESTART_POLICY}
+        delay: ${DOCKER_DEFAULT_DELAY}
+        max_attempts: ${DOCKER_DEFAULT_MAX_ATTEMPTS}
 
 
 networks:
   elasticsearch:
-    external: true
+    driver: overlay
+    attachable: true
   traefik:
     external: true

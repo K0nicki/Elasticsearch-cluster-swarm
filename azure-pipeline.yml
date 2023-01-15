@@ -14,9 +14,17 @@ parameters:
     type: boolean
     default: false
 
+  - name: deploy_filebeat
+    displayName: Deploy Filebeat
+    type: boolean
+    default: false
+
 
 stages:
 - template: templates/azure-pipeline.elasticsearch.yml
 
 - ${{ if eq(parameters.deploy_traefik, true) }}:
   - template: templates/azure-pipeline.traefik.yml
+
+- ${{ if eq(parameters.deploy_filebeat, true) }}:
+  - template: templates/azure-pipeline.filebeat.yml

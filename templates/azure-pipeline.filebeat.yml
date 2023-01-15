@@ -1,0 +1,34 @@
+---
+parameters:
+  - name: environments
+    type: object
+    default: 
+      prod: vm1.konicki.com
+
+
+stages:
+- ${{ each env in parameters.environments }}:
+  - template: stage/ado/containerized/template.yml@Templates
+    parameters:
+      stageDisplayName: Filebeat on ${{ upper(env.key) }}
+      dependsOn: []
+      environment: ${{ upper(env.key) }}
+      pool: K0nicki
+      server: ${{ env.value }}
+      steps:
+        - script: |
+            set -o allexport
+            source ../env/traefik.env
+            set +o allexport
+
+            export CONFIG_NUMBER=$(($(docker config ls --format "{{.Name}}" | grep -Eo 'filebeat_.*' | grep -Eo '[0-9]+$' | sort -ur | head -n 1)+1))
+            export LOWER_CONFIG_NUMBER=$(($CONFIG_NUMBER-1))
+
+            docker stack deploy --compose-file=docker-compose.filebeat.yml --with-registry-auth --prune filebeat || \
+              true && \
+              docker config rm $(docker config ls --format "{{.Name}}" | grep -Eo 'filebeat_.*'$LOWER_CONFIG_NUMBER'') || \
+              true
+          workingDirectory: "$(Build.Repository.LocalPath)/filebeat"
+          env:
+            DOCKER_CONTEXT: ${{ env.value }}
+          displayName: Deploy Filebeat stack

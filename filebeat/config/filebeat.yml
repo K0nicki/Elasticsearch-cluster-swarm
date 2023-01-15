@@ -1,0 +1,42 @@
+---
+filebeat.config:
+  modules:
+    path: ${path.config}/modules.d/*.yml
+    reload.enabled: false
+
+filebeat.autodiscover:
+  providers:
+    - type: docker
+      templates:
+        - condition.and:
+            - not.contains:
+                docker.container.name: "traefik"
+          config:
+            - type: log
+              paths:
+                - "/var/lib/docker/containers/${data.docker.container.id}/*.log"
+
+processors:
+- add_docker_metadata:
+    host: "unix:///var/run/docker.sock"
+
+output.elasticsearch:
+  hosts: ["http://${ELASTICSEARCH_URL}"]
+  indices:
+    - index: "kibana-%{+yyyy.MM.dd}"
+      when.or:
+        - contains:
+            container.name: "elasticsearch_kibana"
+    - index: "elasticsearch-%{+yyyy.MM.dd}"
+      when.or:
+        - contains:
+            container.name: "elasticsearch_elasticsearch"
+      
+tags: ["elasticsearch"]
+setup.template.name: "elasticsearch"
+setup.template.pattern: "elasticsearch-*"
+setup.template.settings:
+  index.number_of_shards: 1
+  index.refresh_interval: "30s"
+
+setup.ilm.enabled: false

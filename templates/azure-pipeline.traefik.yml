@@ -10,19 +10,31 @@ stages:
 - ${{ each env in parameters.environments }}:
   - template: stage/ado/containerized/template.yml@Templates
     parameters:
-      stageDisplayName: Traefik on ${{ upper(env) }}
+      stageDisplayName: Traefik on ${{ upper(env.key) }}
       dependsOn: []
-      environment: ${{ upper(env) }}
+      environment: ${{ upper(env.key) }}
       pool: K0nicki
       server: ${{ env.value }}
       steps:
+        - task: DownloadSecureFile@1
+          name: ansiblePasswordFile
+          inputs:
+            secureFile: AnsibleVault
+
+        - script: |
+            ansible-vault decrypt konicki.com.key --vault-password-file $(ansiblePasswordFile.secureFilePath)
+          workingDirectory: "$(Build.Repository.LocalPath)/traefik/ssl"
+          displayName: Decrypt private key
+
         - script: |
             set -o allexport
-              source ../env/traefik.env
+            source ../env/traefik.env
             set +o allexport
 
             export CONFIG_NUMBER=$(($(docker config ls --format "{{.Name}}" | grep -Eo 'traefik_.*' | grep -Eo '[0-9]+$' | sort -ur | head -n 1)+1))
             export LOWER_CONFIG_NUMBER=$(($CONFIG_NUMBER-1))
+            
+            docker network create --driver overlay traefik
 
             docker stack deploy --compose-file=docker-compose.traefik.yml --with-registry-auth --prune traefik || \
               true && \
