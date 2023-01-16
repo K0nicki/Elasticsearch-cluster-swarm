@@ -33,8 +33,6 @@ http:
       service: kibana
       entrypoints:
         - kibana
-      # middlewares:
-      #   - kibanaForward
 
 
     elasticsearch_9200:
@@ -75,7 +73,6 @@ http:
       redirectRegex:
         regex: .*
         replacement: http://{{ env "KIBANA_URL" }}
-        # replacement: https://{{ env "KIBANA_URL" }}
         permanent: true
 
 
